@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Daily Arc">
+<meta name="theme-color" content="#0D0D0F">
+<title>Daily Architecture</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  :root {
+    --bg-deep: #0D0D0F;
+    --bg-mid: #15161A;
+    --bg-card: rgba(255,255,255,0.02);
+    --bg-card-done: rgba(255,255,255,0.04);
+    --gold: #D4A853;
+    --gold-light: #E8C478;
+    --green: #6BAF7A;
+    --green-light: #8FD49D;
+    --purple: #C47ADB;
+    --teal: #4ECDC4;
+    --orange: #E07A5F;
+    --blue: #5B8FB9;
+    --text: #E8E4DF;
+    --text-dim: #8A857E;
+    --text-faint: #5A5650;
+    --text-ghost: #3A3830;
+    --border: rgba(255,255,255,0.04);
+    --border-done: rgba(107,175,122,0.2);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: Georgia, 'Times New Roman', serif;
+    background: linear-gradient(165deg, var(--bg-deep) 0%, var(--bg-mid) 40%, #1A1520 100%);
+    color: var(--text);
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .ui { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif; }
+
+  .container {
+    max-width: 540px;
+    margin: 0 auto;
+    padding: 24px 20px 80px;
+    padding-top: max(24px, env(safe-area-inset-top));
+    position: relative;
+  }
+
+  /* Ambient glows */
+  .glow-gold, .glow-purple {
+    position: fixed; pointer-events: none; border-radius: 50%;
+  }
+  .glow-gold { top: -30%; right: -20%; width: 60%; height: 60%; background: radial-gradient(circle, rgba(212,168,83,0.05) 0%, transparent 70%); }
+  .glow-purple { bottom: -20%; left: -10%; width: 50%; height: 50%; background: radial-gradient(circle, rgba(196,122,219,0.03) 0%, transparent 70%); }
+
+  /* Header */
+  .header-label { font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold); margin-bottom: 6px; font-weight: 600; }
+  .header-title { font-size: 26px; font-weight: 400; line-height: 1.2; color: #F5F0E8; }
+  .header-sub { font-size: 13px; color: var(--text-dim); margin-top: 5px; line-height: 1.5; }
+
+  /* Toggle tabs */
+  .tabs {
+    display: flex; gap: 4px; margin-bottom: 16px;
+    background: rgba(255,255,255,0.03); border-radius: 10px; padding: 3px;
+    border: 1px solid var(--border);
+  }
+  .tab-btn {
+    flex: 1; padding: 9px 0; border: none; border-radius: 8px;
+    background: transparent; color: var(--text-faint);
+    cursor: pointer; font-size: 12px; font-weight: 600;
+    letter-spacing: 0.02em; transition: all 0.25s ease;
+  }
+  .tab-btn.active { background: rgba(212,168,83,0.15); color: var(--gold); }
+
+  /* Day selector */
+  .days {
+    display: flex; gap: 4px; margin-bottom: 20px;
+    background: rgba(255,255,255,0.03); border-radius: 12px; padding: 4px;
+    border: 1px solid var(--border);
+  }
+  .day-btn {
+    flex: 1; padding: 9px 0 7px; border: none; border-radius: 10px;
+    background: transparent; color: var(--text-faint);
+    cursor: pointer; font-size: 12px; font-weight: 600;
+    transition: all 0.25s ease; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  }
+  .day-btn.active { background: rgba(212,168,83,0.15); color: var(--gold); }
+  .day-btn.active.weekend { background: rgba(196,122,219,0.15); color: var(--purple); }
+  .day-dot {
+    width: 4px; height: 4px; border-radius: 50%; background: var(--gold);
+  }
+  .day-dot.perfect { background: var(--green); }
+  .day-dot.weekend-dot { background: var(--purple); }
+
+  /* Progress */
+  .progress-bar {
+    margin-bottom: 20px; padding: 14px 16px;
+    background: rgba(255,255,255,0.025); border-radius: 14px;
+    border: 1px solid var(--border);
+  }
+  .progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .progress-track { height: 4px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden; }
+  .progress-fill {
+    height: 100%; border-radius: 4px;
+    background: linear-gradient(90deg, var(--gold), var(--gold-light));
+    transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .progress-fill.complete { background: linear-gradient(90deg, var(--green), var(--green-light)); }
+
+  /* Habit cards */
+  .habit-list { display: flex; flex-direction: column; gap: 6px; }
+  .habit-card {
+    background: var(--bg-card); border-radius: 13px;
+    border: 1px solid var(--border); overflow: hidden;
+    transition: all 0.3s ease;
+  }
+  .habit-card.done { background: var(--bg-card-done); border-color: var(--border-done); }
+  .habit-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px; cursor: pointer; user-select: none;
+  }
+
+  .checkbox {
+    width: 26px; height: 26px; border-radius: 7px; flex-shrink: 0;
+    border: 2px solid rgba(255,255,255,0.12); background: transparent;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all 0.25s ease; font-size: 13px; color: #fff;
+  }
+  .checkbox.checked {
+    border: none; background: linear-gradient(135deg, var(--green), #5A9E6A);
+  }
+
+  .habit-icon { font-size: 15px; }
+  .habit-label {
+    font-size: 14px; font-weight: 500; color: var(--text);
+    transition: all 0.3s ease;
+  }
+  .habit-label.done { color: var(--green); text-decoration: line-through; text-decoration-color: rgba(107,175,122,0.4); }
+
+  .habit-meta { font-size: 11px; color: var(--text-faint); margin-top: 2px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .cat-tag {
+    font-size: 9px; padding: 1px 5px; border-radius: 4px;
+    font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+  }
+  .goal-tag { font-size: 9px; color: var(--text-faint); }
+
+  .expand-arrow {
+    color: #4A4640; font-size: 10px; transition: transform 0.25s ease;
+  }
+  .expand-arrow.open { transform: rotate(180deg); }
+
+  .habit-detail {
+    padding: 0 14px 12px 52px; font-size: 13px; line-height: 1.6;
+    color: #A09A92; border-top: 1px solid rgba(255,255,255,0.03); padding-top: 10px;
+    display: none;
+  }
+  .habit-detail.open { display: block; }
+
+  /* Goals view */
+  .goal-card {
+    background: rgba(255,255,255,0.025); border-radius: 14px;
+    border: 1px solid var(--border); padding: 14px 16px; margin-bottom: 8px;
+  }
+  .goal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .goal-name { display: flex; align-items: center; gap: 10px; }
+  .goal-icon { font-size: 18px; }
+  .goal-label { font-size: 14px; font-weight: 500; }
+  .goal-count { font-size: 12px; font-weight: 600; }
+
+  /* Step counter */
+  .step-counter {
+    margin-top: 12px; padding: 16px; text-align: center;
+    background: rgba(78,205,196,0.06); border-radius: 14px;
+    border: 1px solid rgba(78,205,196,0.12);
+  }
+  .step-label { font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--teal); font-weight: 600; margin-bottom: 6px; }
+  .step-number { font-size: 32px; font-weight: 300; color: var(--teal); }
+  .step-goal { font-size: 12px; color: var(--text-faint); margin-top: 4px; }
+  .step-track { height: 4px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden; max-width: 200px; margin: 10px auto 0; }
+  .step-fill { height: 100%; background: linear-gradient(90deg, var(--teal), #7EDDD7); border-radius: 4px; transition: width 0.5s ease; }
+
+  /* Weekly overview */
+  .weekly {
+    margin-top: 24px; padding: 16px;
+    background: rgba(255,255,255,0.02); border-radius: 14px;
+    border: 1px solid var(--border);
+  }
+  .weekly-label { font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--text-faint); margin-bottom: 12px; font-weight: 600; }
+  .weekly-bars { display: flex; gap: 5px; align-items: flex-end; height: 48px; }
+  .weekly-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+  .weekly-bar-bg {
+    width: 100%; border-radius: 5px; background: rgba(255,255,255,0.04);
+    height: 38px; position: relative; overflow: hidden;
+  }
+  .weekly-bar-fill {
+    position: absolute; bottom: 0; left: 0; right: 0; border-radius: 5px;
+    transition: height 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .weekly-day-label { font-size: 9px; font-weight: 600; color: var(--text-ghost); }
+  .weekly-day-label.active { color: var(--gold); }
+  .weekly-day-label.active.weekend { color: var(--purple); }
+
+  /* Tip */
+  .tip {
+    margin-top: 20px; padding: 12px 14px;
+    background: rgba(212,168,83,0.04); border-radius: 12px;
+    border: 1px solid rgba(212,168,83,0.08);
+    font-size: 12px; color: var(--text-dim); line-height: 1.6;
+  }
+  .tip-label { color: var(--gold); font-weight: 600; }
+
+  /* Week selector */
+  .week-nav {
+    display: flex; align-items: center; justify-content: center; gap: 16px;
+    margin-bottom: 20px;
+  }
+  .week-nav-btn {
+    background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+    color: var(--text-dim); width: 32px; height: 32px; border-radius: 8px;
+    cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s ease;
+  }
+  .week-nav-btn:active { background: rgba(255,255,255,0.1); }
+  .week-label-text { font-size: 13px; color: var(--text-dim); font-weight: 500; min-width: 160px; text-align: center; }
+
+  /* Install banner */
+  .install-banner {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: rgba(21,22,26,0.95); backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(212,168,83,0.15);
+    padding: 14px 20px; padding-bottom: max(14px, env(safe-area-inset-bottom));
+    display: none; z-index: 100;
+  }
+  .install-banner.show { display: block; }
+  .install-text { font-size: 13px; color: var(--text-dim); line-height: 1.5; text-align: center; }
+  .install-text strong { color: var(--gold); }
+  .install-dismiss {
+    display: block; margin: 8px auto 0; background: none; border: none;
+    color: var(--text-faint); font-size: 12px; cursor: pointer;
+  }
+
+  /* Animations */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate-in { animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
+</style>
+</head>
+<body>
+<div class="glow-gold"></div>
+<div class="glow-purple"></div>
+
+<div class="container" id="app"></div>
+<div class="install-banner" id="installBanner">
+  <p class="install-text ui">
+    <strong>Add to Home Screen</strong> for the full app experience.<br>
+    Tap <strong>Share ↑</strong> → <strong>Add to Home Screen</strong>
+  </p>
+  <button class="install-dismiss ui" onclick="dismissInstall()">Got it</button>
+</div>
+
+<script>
+// ===== DATA =====
+const WEEKDAY_HABITS = [
+  { id:"wake", label:"Morning Runway", time:"9:00–9:25 AM", icon:"☕", description:"No screens first 10 min. Coffee + daylight. Quick stretch. You have 30 min before you need to leave — make them count by not touching your phone.", category:"anchor", goal:null },
+  { id:"breakfast", label:"Real Breakfast", time:"9:10–9:25 AM", icon:"🍳", description:"Something with protein — eggs, yogurt, overnight oats. Prep the night before so mornings stay easy. Eat before you leave, not at your desk.", category:"nutrition", goal:4 },
+  { id:"deep_work", label:"Deep Work Block", time:"10:00 AM–12:00 PM", icon:"🎯", description:"Hardest production decisions and creative problem-solving first. Phone on DND. Batch emails and Slack after noon. This is where work quality lives.", category:"work", goal:1 },
+  { id:"lunch", label:"Actual Lunch Break", time:"12:00–12:30 PM", icon:"🥗", description:"Eat before your walk — real food, not snacking. Step away from your desk. Even 20 min of intentional eating changes your afternoon energy.", category:"nutrition", goal:4 },
+  { id:"midday_walk", label:"Workday Walk", time:"12:30–1:00 PM", icon:"👟", description:"30 min walk during the workday. Outside if possible — sunlight and movement reset your afternoon. Pair with a call, a podcast, or just silence. ~3,000 steps banked before you even leave the office.", category:"exercise", goal:3 },
+  { id:"afternoon_focus", label:"Afternoon Production", time:"1:00–5:50 PM", icon:"📋", description:"Meetings, calls, reviews, approvals. Wrap up by 5:50 so you can do your shutdown ritual before walking out the door at 6.", category:"work", goal:1 },
+  { id:"shutdown", label:"Shutdown Ritual", time:"5:50–6:00 PM (at office)", icon:"🔒", description:"Do this BEFORE you leave work. Write tomorrow's top 3 priorities. Close every tab. Say 'shutdown complete.' Walk out the door with a clean mind.", category:"anchor", goal:1 },
+  { id:"evening_exercise", label:"Evening Exercise", time:"6:45–7:45 PM", icon:"🏃", description:"Treadmill, elliptical, or outdoor walk. Start with 30 min and build toward 60–90 min. You're home by 6:20 — change clothes, decompress 20 min, then go.", category:"exercise", goal:3 },
+  { id:"dinner", label:"Dinner", time:"8:00–8:30 PM", icon:"🍽️", description:"A proper meal. Prep on Sundays to make weeknights easier. Eating at a consistent time regulates sleep and energy.", category:"nutrition", goal:4 },
+  { id:"writing", label:"Writers Room (Solo)", time:"8:30–9:30 PM", icon:"✍️", description:"Your sci-fi pilot and creative work live here. Minimum 60 min. Bad pages count — just show up. This is when your night-owl brain is actually firing.", category:"creative", goal:2 },
+  { id:"declutter", label:"15-Min Purge", time:"9:30–9:45 PM", icon:"📦", description:"One box, one drawer, one shelf. Set a timer — 15 min only. Decide: keep, donate, trash. Small daily bites beat overwhelming weekend marathons.", category:"home", goal:7 },
+  { id:"reading", label:"Reading Time", time:"10:00–10:45 PM", icon:"📖", description:"Physical book or e-reader (not a tablet). This replaces doomscrolling and is your bridge into sleep mode. 30–45 min.", category:"creative", goal:6 },
+  { id:"sleep", label:"Lights Out", time:"11:00 PM", icon:"🌙", description:"In bed by 10:45, lights out by 11. That gives you 10 hours in bed for 8 hours of actual sleep. Non-negotiable foundation for everything else.", category:"anchor", goal:5 },
+];
+
+const WEEKEND_HABITS = [
+  { id:"w_wake", label:"Weekend Wake-Up", time:"11:00 AM", icon:"☀️", description:"Sleep in guilt-free — you earned it. Coffee, daylight, slow start. Don't let the morning disappear into your phone though.", category:"anchor", goal:5 },
+  { id:"w_brunch", label:"Brunch / Late Breakfast", time:"11:30 AM", icon:"🍳", description:"Cook something real. Weekend meals are a chance to actually enjoy food prep. Protein + something green.", category:"nutrition", goal:4 },
+  { id:"w_exercise", label:"Long Walk / Gym", time:"12:30–2:00 PM", icon:"🏃", description:"This is your big exercise window. 60–90 min outdoor walk, treadmill, or elliptical. Explore a new neighborhood. Weekends are where you bank serious steps.", category:"exercise", goal:3 },
+  { id:"w_writing", label:"Extended Writing Block", time:"2:30–4:30 PM", icon:"✍️", description:"Weekends give you the gift of 2 uninterrupted hours. Dive deep into your pilot. This is where breakthroughs happen.", category:"creative", goal:2 },
+  { id:"w_declutter", label:"Declutter Power Hour", time:"5:00–6:00 PM", icon:"📦", description:"Tackle a bigger zone — a closet, a room corner, a whole category. The weekday 15-min sessions prep you; this is where real progress shows.", category:"home", goal:7 },
+  { id:"w_dinner", label:"Dinner + Meal Prep", time:"6:30–7:30 PM", icon:"🍽️", description:"Cook dinner and prep 2–3 weekday meals. Even just portioning out lunches saves you from junk food all week.", category:"nutrition", goal:4 },
+  { id:"w_free", label:"Free Time / Social", time:"7:30–10:00 PM", icon:"🎬", description:"Movies, friends, music, whatever recharges you. Don't over-optimize weekends — rest IS productive.", category:"anchor", goal:null },
+  { id:"w_reading", label:"Reading Time", time:"10:30–11:30 PM", icon:"📖", description:"Extended reading time on weekends. Physical book or e-reader. Wind down naturally.", category:"creative", goal:6 },
+  { id:"w_sleep", label:"Lights Out", time:"12:00 AM", icon:"🌙", description:"A little later on weekends is fine. Aim for midnight to still hit ~11 hours in bed for your 8 hours of sleep.", category:"anchor", goal:5 },
+];
+
+const CATEGORIES = {
+  anchor: { label:"Anchor", color:"#D4A853" },
+  work: { label:"Production", color:"#5B8FB9" },
+  exercise: { label:"Exercise", color:"#4ECDC4" },
+  nutrition: { label:"Nutrition", color:"#6BAF7A" },
+  creative: { label:"Creative", color:"#C47ADB" },
+  home: { label:"Home", color:"#E07A5F" },
+};
+
+const GOALS = [
+  { num:1, label:"Work Quality", icon:"🎯" },
+  { num:2, label:"Daily Writing", icon:"✍️" },
+  { num:3, label:"Exercise / 10K Steps", icon:"🏃" },
+  { num:4, label:"Eat Better", icon:"🥗" },
+  { num:5, label:"8 Hours Sleep", icon:"🌙" },
+  { num:6, label:"Read More", icon:"📖" },
+  { num:7, label:"Declutter Home", icon:"📦" },
+];
+
+const DAY_NAMES = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+
+// ===== STATE =====
+let state = {
+  selectedDay: (() => { const d = new Date().getDay(); return d === 0 ? 6 : d - 1; })(),
+  view: "habits",
+  expandedHabit: null,
+  weekOffset: 0,
+};
+
+// ===== STORAGE =====
+function getWeekKey(offset) {
+  const now = new Date();
+  const mon = new Date(now);
+  mon.setDate(now.getDate() - ((now.getDay() + 6) % 7) + (offset * 7));
+  return `week-${mon.getFullYear()}-${String(mon.getMonth()+1).padStart(2,'0')}-${String(mon.getDate()).padStart(2,'0')}`;
+}
+
+function getWeekLabel(offset) {
+  const now = new Date();
+  const mon = new Date(now);
+  mon.setDate(now.getDate() - ((now.getDay() + 6) % 7) + (offset * 7));
+  const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+  const opts = { month: 'short', day: 'numeric' };
+  if (offset === 0) return `This Week · ${mon.toLocaleDateString('en-US', opts)} – ${sun.toLocaleDateString('en-US', opts)}`;
+  if (offset === -1) return `Last Week · ${mon.toLocaleDateString('en-US', opts)} – ${sun.toLocaleDateString('en-US', opts)}`;
+  return `${mon.toLocaleDateString('en-US', opts)} – ${sun.toLocaleDateString('en-US', opts)}`;
+}
+
+function loadWeek() {
+  const key = getWeekKey(state.weekOffset);
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
+}
+
+function saveWeek(data) {
+  const key = getWeekKey(state.weekOffset);
+  localStorage.setItem(key, JSON.stringify(data));
+}
+
+function isChecked(dayIndex, habitId) {
+  const data = loadWeek();
+  return !!data[`${dayIndex}-${habitId}`];
+}
+
+function toggleCheck(dayIndex, habitId) {
+  const data = loadWeek();
+  const key = `${dayIndex}-${habitId}`;
+  data[key] = !data[key];
+  saveWeek(data);
+  render();
+}
+
+// ===== HELPERS =====
+function getHabits(dayIndex) { return dayIndex >= 5 ? WEEKEND_HABITS : WEEKDAY_HABITS; }
+function isWeekend(dayIndex) { return dayIndex >= 5; }
+
+function getDayStats(dayIndex) {
+  const habits = getHabits(dayIndex);
+  const done = habits.filter(h => isChecked(dayIndex, h.id)).length;
+  return { done, total: habits.length, pct: Math.round((done / habits.length) * 100) };
+}
+
+function getGoalProgress(goalNum) {
+  let total = 0, done = 0;
+  for (let i = 0; i < 7; i++) {
+    getHabits(i).forEach(h => {
+      if (h.goal === goalNum) {
+        total++;
+        if (isChecked(i, h.id)) done++;
+      }
+    });
+  }
+  return { done, total, pct: total > 0 ? Math.round((done / total) * 100) : 0 };
+}
+
+function getStepEstimate(dayIndex) {
+  let steps = 0;
+  const habits = getHabits(dayIndex);
+  habits.forEach(h => {
+    if (isChecked(dayIndex, h.id) && h.goal === 3) {
+      if (h.id === "midday_walk") steps += 3000;
+      if (h.id === "evening_exercise") steps += 5500;
+      if (h.id === "w_exercise") steps += 6000;
+    }
+  });
+  return steps;
+}
+
+// ===== RENDER =====
+function render() {
+  const { selectedDay, view, expandedHabit, weekOffset } = state;
+  const habits = getHabits(selectedDay);
+  const stats = getDayStats(selectedDay);
+  const we = isWeekend(selectedDay);
+
+  let html = '';
+
+  // Header
+  html += `<div class="animate-in" style="margin-bottom:24px; animation-delay:0s">
+    <div class="header-label ui">Night Owl System</div>
+    <h1 class="header-title">${we ? 'Weekend' : 'Weekday'} Architecture</h1>
+    <p class="header-sub ui">${we ? WEEKEND_HABITS.length + ' habits · 11 AM start · extended writing + exercise' : WEEKDAY_HABITS.length + ' habits · 9 AM start · 10–6 work + evening creative block'}</p>
+  </div>`;
+
+  // View toggle
+  html += `<div class="tabs ui">
+    <button class="tab-btn${view==='habits'?' active':''}" onclick="setView('habits')">Daily Habits</button>
+    <button class="tab-btn${view==='goals'?' active':''}" onclick="setView('goals')">7 Goals</button>
+  </div>`;
+
+  // Week nav
+  html += `<div class="week-nav ui">
+    <button class="week-nav-btn" onclick="changeWeek(-1)">‹</button>
+    <span class="week-label-text">${getWeekLabel(weekOffset)}</span>
+    <button class="week-nav-btn" onclick="changeWeek(1)" ${weekOffset >= 0 ? 'style="opacity:0.3;pointer-events:none"' : ''}>›</button>
+  </div>`;
+
+  // Day selector
+  html += `<div class="days ui">`;
+  DAY_NAMES.forEach((d, i) => {
+    const active = i === selectedDay;
+    const dayStats = getDayStats(i);
+    const we2 = isWeekend(i);
+    let dotClass = '';
+    if (dayStats.done > 0) {
+      dotClass = dayStats.done === dayStats.total ? 'day-dot perfect' : (we2 ? 'day-dot weekend-dot' : 'day-dot');
+    }
+    html += `<button class="day-btn${active?' active':''}${active && we2?' weekend':''}" onclick="selectDay(${i})">
+      ${d}${dotClass ? `<span class="${dotClass}"></span>` : '<span style="height:4px"></span>'}
+    </button>`;
+  });
+  html += `</div>`;
+
+  if (view === 'goals') {
+    // Goals view
+    html += `<div>`;
+    GOALS.forEach(g => {
+      const gp = getGoalProgress(g.num);
+      const colorClass = gp.pct === 100 ? 'var(--green)' : gp.pct > 50 ? 'var(--gold)' : 'var(--text-faint)';
+      html += `<div class="goal-card">
+        <div class="goal-header">
+          <div class="goal-name"><span class="goal-icon">${g.icon}</span><span class="goal-label ui">${g.label}</span></div>
+          <span class="goal-count ui" style="color:${colorClass}">${gp.done}/${gp.total} this week</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill${gp.pct===100?' complete':''}" style="width:${gp.pct}%"></div>
+        </div>
+      </div>`;
+    });
+
+    // Step counter
+    const steps = getStepEstimate(selectedDay);
+    const stepPct = Math.min(100, (steps / 10000) * 100);
+    html += `<div class="step-counter ui">
+      <div class="step-label">Estimated Steps ${DAY_NAMES[selectedDay]}</div>
+      <div class="step-number">${steps.toLocaleString()}</div>
+      <div class="step-goal">of 10,000 goal</div>
+      <div class="step-track"><div class="step-fill" style="width:${stepPct}%"></div></div>
+    </div>`;
+    html += `</div>`;
+
+  } else {
+    // Progress bar
+    html += `<div class="progress-bar">
+      <div class="progress-header">
+        <span class="ui" style="font-size:12px;color:var(--text-dim)">${stats.done}/${stats.total} complete</span>
+        <span class="ui" style="font-size:12px;font-weight:600;color:${stats.done===stats.total?'var(--green)':'var(--gold)'}">${stats.done===stats.total?'✦ Perfect day':stats.pct+'%'}</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill${stats.done===stats.total?' complete':''}" style="width:${stats.pct}%"></div>
+      </div>
+    </div>`;
+
+    // Habit cards
+    html += `<div class="habit-list">`;
+    habits.forEach((h, idx) => {
+      const done = isChecked(selectedDay, h.id);
+      const expanded = expandedHabit === h.id;
+      const cat = CATEGORIES[h.category];
+      html += `<div class="habit-card${done?' done':''} animate-in" style="animation-delay:${idx*0.04}s">
+        <div class="habit-row" onclick="toggleExpand('${h.id}')">
+          <div class="checkbox${done?' checked'   :''}" onclick="event.stopPropagation();toggleCheck(${selectedDay},'${h.id}')">${done?'✓':''}</div>
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:7px">
+              <span class="habit-icon">${h.icon}</span>
+              <span class="habit-label ui${done?' done':''}">${h.label}</span>
+            </div>
+            <div class="habit-meta ui">
+              <span>${h.time}</span>
+              <span class="cat-tag" style="background:${cat.color}15;color:${cat.color}">${cat.label}</span>
+              ${h.goal ? `<span class="goal-tag">→ Goal #${h.goal}</span>` : ''}
+            </div>
+          </div>
+          <span class="expand-arrow${expanded?' open':''}">▼</span>
+        </div>
+        <div class="habit-detail ui${expanded?' open':''}">${h.description}</div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  // Weekly overview
+  html += `<div class="weekly">
+    <div class="weekly-label ui">Weekly Overview</div>
+    <div class="weekly-bars">`;
+  DAY_NAMES.forEach((d, i) => {
+    const ds = getDayStats(i);
+    const pct = ds.total > 0 ? (ds.done / ds.total) * 100 : 0;
+    const we2 = isWeekend(i);
+    const active = i === selectedDay;
+    let fillBg = 'rgba(255,255,255,0.08)';
+    if (ds.done === ds.total && ds.done > 0) fillBg = 'linear-gradient(to top, var(--green), var(--green-light))';
+    else if (active) fillBg = we2 ? 'linear-gradient(to top, var(--purple), #D49AE8)' : 'linear-gradient(to top, var(--gold), var(--gold-light))';
+    html += `<div class="weekly-col">
+      <div class="weekly-bar-bg"><div class="weekly-bar-fill" style="height:${pct}%;background:${fillBg}"></div></div>
+      <span class="weekly-day-label ui${active?' active':''}${active&&we2?' weekend':''}">${d}</span>
+    </div>`;
+  });
+  html += `</div></div>`;
+
+  // Tip
+  html += `<div class="tip ui">
+    <span class="tip-label">Week 1 tip:</span> Don't try all ${habits.length} at once. Pick your shutdown ritual, writing block, and evening exercise first. Stack the rest once those three are automatic.
+  </div>`;
+
+  document.getElementById('app').innerHTML = html;
+}
+
+// ===== ACTIONS =====
+function selectDay(i) { state.selectedDay = i; state.expandedHabit = null; render(); }
+function setView(v) { state.view = v; render(); }
+function toggleExpand(id) { state.expandedHabit = state.expandedHabit === id ? null : id; render(); }
+function changeWeek(dir) {
+  if (dir > 0 && state.weekOffset >= 0) return;
+  state.weekOffset += dir;
+  render();
+}
+
+// ===== INSTALL BANNER =====
+function showInstallBanner() {
+  if (window.navigator.standalone) return;
+  if (localStorage.getItem('installDismissed')) return;
+  if (!(/iPhone|iPad|iPod/.test(navigator.userAgent))) return;
+  document.getElementById('installBanner').classList.add('show');
+}
+function dismissInstall() {
+  document.getElementById('installBanner').classList.remove('show');
+  localStorage.setItem('installDismissed', 'true');
+}
+
+// ===== INIT =====
+render();
+setTimeout(showInstallBanner, 2000);
+
+// Register service worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
